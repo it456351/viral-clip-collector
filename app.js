@@ -1,7 +1,7 @@
 const GAS_URL='YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL';
 const LS_KEY='viralClips_v1';
 const AUTH_KEY='vcc_auth_ok_2026';
-const USERS={viralclip:'Viral@2026'};
+const USERS={viralclip:'R(SMpGAYh]!4h4%z'};
 let clips=[],editId=null;
 
 // Rate limiting: max 5 failed attempts then lockout 30s
