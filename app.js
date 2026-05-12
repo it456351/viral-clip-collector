@@ -1,37 +1,57 @@
 const GAS_URL='YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL';
 const LS_KEY='viralClips_v1';
-const AUTH_KEY='vcc_auth';
+const AUTH_KEY='vcc_auth_ok_2026';
 const USERS={viralclip:'Viral@2026'};
 let clips=[],editId=null;
 
+// Rate limiting: max 5 failed attempts then lockout 30s
+let failCount=0,lockUntil=0;
+
 document.addEventListener('DOMContentLoaded',()=>{
-  if(sessionStorage.getItem(AUTH_KEY)==='ok'){showApp();}else{showLogin();}
+  // Always clear on fresh page load for security
+  const ok=sessionStorage.getItem(AUTH_KEY);
+  if(ok==='true'){showApp();}else{showLogin();}
 });
 
 function showLogin(){
   document.getElementById('loginPage').style.display='flex';
   document.getElementById('mainApp').style.display='none';
+  const form=document.getElementById('loginForm');
+  // Remove old listener to prevent duplicate
+  form.replaceWith(form.cloneNode(true));
   document.getElementById('loginForm').addEventListener('submit',handleLogin);
 }
 
 function handleLogin(e){
   e.preventDefault();
+  const err=document.getElementById('loginErr');
+  // Check lockout
+  if(Date.now()<lockUntil){
+    const secs=Math.ceil((lockUntil-Date.now())/1000);
+    err.textContent='Too many attempts. Wait '+secs+'s';
+    return;
+  }
   const user=document.getElementById('loginUser').value.trim();
   const pass=document.getElementById('loginPass').value;
-  const err=document.getElementById('loginErr');
   if(USERS[user]&&USERS[user]===pass){
-    sessionStorage.setItem(AUTH_KEY,'ok');
+    failCount=0;
+    sessionStorage.setItem(AUTH_KEY,'true');
     document.getElementById('loginPage').style.display='none';
     showApp();
   }else{
-    err.textContent='Invalid username or password';
+    failCount++;
     document.getElementById('loginPass').value='';
+    if(failCount>=5){lockUntil=Date.now()+30000;failCount=0;err.textContent='Too many attempts. Locked 30s.';return;}
+    err.textContent='Invalid username or password ('+failCount+'/5)';
     setTimeout(()=>{err.textContent='';},3000);
   }
 }
 
 function showApp(){
+  // Double-check auth before showing app
+  if(sessionStorage.getItem(AUTH_KEY)!=='true'){showLogin();return;}
   document.getElementById('mainApp').style.display='block';
+  document.getElementById('loginPage').style.display='none';
   loadFromLocalStorage();renderTable();updateStats();
   document.getElementById('clipForm').addEventListener('submit',handleSave);
   document.getElementById('exportBtn').addEventListener('click',exportCSV);
@@ -39,7 +59,10 @@ function showApp(){
   document.getElementById('filterPlatform').addEventListener('change',renderTable);
   document.getElementById('filterStatus').addEventListener('change',renderTable);
   document.getElementById('sortSelect').addEventListener('change',renderTable);
-  document.getElementById('logoutBtn').addEventListener('click',()=>{sessionStorage.removeItem(AUTH_KEY);location.reload();});
+  document.getElementById('logoutBtn').addEventListener('click',()=>{
+    sessionStorage.removeItem(AUTH_KEY);
+    location.reload();
+  });
 }
 
 function loadFromLocalStorage(){const raw=localStorage.getItem(LS_KEY);clips=raw?JSON.parse(raw):[];}
@@ -47,6 +70,7 @@ function saveToLocalStorage(){localStorage.setItem(LS_KEY,JSON.stringify(clips))
 
 async function handleSave(e){
   e.preventDefault();
+  if(sessionStorage.getItem(AUTH_KEY)!=='true'){location.reload();return;}
   const msg=document.getElementById('formMsg');
   const clip={
     id:editId||Date.now().toString(),
@@ -73,6 +97,7 @@ function v(id){return document.getElementById(id).value.trim();}
 function resetForm(){document.getElementById('clipForm').reset();editId=null;document.querySelector('#clipForm .btn--primary').textContent='Save Clip';}
 
 function renderTable(){
+  if(sessionStorage.getItem(AUTH_KEY)!=='true'){location.reload();return;}
   const search=document.getElementById('searchInput').value.toLowerCase();
   const platform=document.getElementById('filterPlatform').value;
   const status=document.getElementById('filterStatus').value;
@@ -93,7 +118,7 @@ function renderTable(){
     <tr>
       <td style="color:var(--muted);font-family:var(--font-mono)">${i+1}</td>
       <td>${platformBadge(c.platform)}</td>
-      <td><a href="${escHtml(c.url)}" target="_blank" class="url-cell" title="${escHtml(c.url)}">${escHtml(c.url)}</a></td>
+      <td><a href="${escHtml(c.url)}" target="_blank" rel="noopener noreferrer" class="url-cell" title="${escHtml(c.url)}">${escHtml(c.url)}</a></td>
       <td>${escHtml(c.song)}</td><td>${escHtml(c.dance)}</td><td>${escHtml(c.character)}</td>
       <td>${scoreBadge(c.score)}</td><td>${statusBadge(c.status)}</td>
       <td style="font-size:12px;color:var(--muted);max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(c.note)}</td>
@@ -110,16 +135,19 @@ function renderTable(){
 function openURL(url){window.open(url,'_blank','noopener,noreferrer');}
 function copyURL(url){navigator.clipboard.writeText(url).then(()=>showToast('Copied!'));}
 function editClip(id){
+  if(sessionStorage.getItem(AUTH_KEY)!=='true'){location.reload();return;}
   const c=clips.find(x=>x.id===id);if(!c)return;editId=id;
   ['platform','url','song','dance','character','product','score','status','note'].forEach(k=>document.getElementById(k).value=c[k]??'');
   document.querySelector('#clipForm .btn--primary').textContent='Update Clip';
   document.getElementById('clipForm').scrollIntoView({behavior:'smooth'});
 }
 function deleteClip(id){
+  if(sessionStorage.getItem(AUTH_KEY)!=='true'){location.reload();return;}
   if(!confirm('Delete this clip?'))return;
   clips=clips.filter(c=>c.id!==id);saveToLocalStorage();renderTable();updateStats();showToast('Deleted',true);
 }
 function exportCSV(){
+  if(sessionStorage.getItem(AUTH_KEY)!=='true'){location.reload();return;}
   if(!clips.length){showToast('No clips!',true);return;}
   const h=['Timestamp','Platform','URL','Song','Dance','Character','Product','Score','Status','Note'];
   const rows=clips.map(c=>[c.timestamp,c.platform,c.url,c.song,c.dance,c.character,c.product,c.score,c.status,c.note].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(','));
