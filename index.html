@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Viral Clip Collector</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet"/>
+</head>
+<body>
+  <div id="loginPage" class="login-page">
+    <div class="login-box">
+      <div class="login-logo">
+        <span class="login-icon">&#9654;</span>
+        <div class="login-title">VIRAL<span class="neon">CLIP</span></div>
+        <div class="login-subtitle">COLLECTOR</div>
+      </div>
+      <form id="loginForm">
+        <div class="login-field"><label>USERNAME</label><input type="text" id="loginUser" placeholder="Enter username" autocomplete="off" /></div>
+        <div class="login-field"><label>PASSWORD</label><input type="password" id="loginPass" placeholder="Enter password" /></div>
+        <div id="loginErr" class="login-err"></div>
+        <button type="submit" class="btn btn--primary btn--full">LOGIN</button>
+      </form>
+      <div class="login-footer">FOR PERSONAL USE ONLY</div>
+    </div>
+  </div>
+  <div id="mainApp" style="display:none">
+    <header class="header">
+      <div class="header-inner">
+        <div class="logo"><span class="logo-icon">&#9654;</span><span class="logo-text">VIRAL<span class="neon">CLIP</span>COLLECTOR</span></div>
+        <div class="header-right">
+          <div class="header-stats"><span class="stat-pill">TOTAL: <b id="totalCount">0</b></span><span class="stat-pill">HIGH SCORE: <b id="highScore">0</b></span></div>
+          <button class="btn-logout" id="logoutBtn">LOGOUT</button>
+        </div>
+      </div>
+    </header>
+    <main class="container">
+      <section class="card form-card">
+        <h2 class="card-title"><span class="neon">+</span> ADD CLIP</h2>
+        <form id="clipForm">
+          <div class="form-grid">
+            <div class="form-group"><label>Platform</label><select id="platform" required><option value="">-- Select --</option><option value="TikTok">TikTok</option><option value="Facebook">Facebook</option><option value="YouTube Shorts">YouTube Shorts</option><option value="Instagram">Instagram</option></select></div>
+            <div class="form-group form-group--full"><label>URL</label><input type="url" id="url" placeholder="https://..." required /></div>
+            <div class="form-group"><label>Song</label><input type="text" id="song" placeholder="Song name..." /></div>
+            <div class="form-group"><label>Dance / Motion</label><input type="text" id="dance" placeholder="Dance style..." /></div>
+            <div class="form-group"><label>Character</label><input type="text" id="character" placeholder="Animal / character..." /></div>
+            <div class="form-group"><label>Product</label><input type="text" id="product" placeholder="Product / brand..." /></div>
+            <div class="form-group"><label>Viral Score (1-100)</label><input type="number" id="score" min="1" max="100" placeholder="e.g. 85" /></div>
+            <div class="form-group"><label>Status</label><select id="status"><option value="New">New</option><option value="In Progress">In Progress</option><option value="Done">Done</option><option value="Archived">Archived</option></select></div>
+            <div class="form-group form-group--full"><label>Note</label><textarea id="note" rows="2" placeholder="Notes, ideas, AI prompt..."></textarea></div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn--primary">Save Clip</button>
+            <button type="button" class="btn btn--outline" id="exportBtn">Export CSV</button>
+          </div>
+          <div id="formMsg" class="form-msg"></div>
+        </form>
+      </section>
+      <section class="card filter-card">
+        <div class="filter-row">
+          <input type="text" id="searchInput" class="search-input" placeholder="Search clips..." />
+          <select id="filterPlatform" class="filter-select"><option value="">All Platforms</option><option value="TikTok">TikTok</option><option value="Facebook">Facebook</option><option value="YouTube Shorts">YouTube Shorts</option><option value="Instagram">Instagram</option></select>
+          <select id="filterStatus" class="filter-select"><option value="">All Status</option><option value="New">New</option><option value="In Progress">In Progress</option><option value="Done">Done</option><option value="Archived">Archived</option></select>
+          <select id="sortSelect" class="filter-select"><option value="newest">Newest First</option><option value="oldest">Oldest First</option><option value="score_desc">Score Down</option><option value="score_asc">Score Up</option></select>
+        </div>
+      </section>
+      <section class="card table-card">
+        <h2 class="card-title">CLIP DATABASE <span id="clipCount" class="count-badge">0</span></h2>
+        <div class="table-wrapper">
+          <table id="clipTable">
+            <thead><tr><th>#</th><th>Platform</th><th>URL</th><th>Song</th><th>Dance</th><th>Character</th><th>Score</th><th>Status</th><th>Note</th><th>Actions</th></tr></thead>
+            <tbody id="clipBody"></tbody>
+          </table>
+          <div id="emptyState" class="empty-state"><p>No clips yet. Add your first viral clip above!</p></div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div id="toast" class="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
