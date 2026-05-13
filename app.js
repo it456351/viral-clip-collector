@@ -154,10 +154,24 @@ function editClip(id){
   set('platform',c.platform);set('url',c.url);set('song',c.song);set('dance',c.dance);set('character',c.character);set('product',c.product);set('score',c.score);set('status',c.status);set('note',c.note);
   document.getElementById('clipForm').scrollIntoView({behavior:'smooth'});
 }
+
 async function delClip(id){
   if(!confirm('Delete this clip?'))return;
-  clips=clips.filter(c=>c.id!==id);localStorage.setItem(LS_KEY,JSON.stringify(clips));renderTable();updateStats();
+  clips=clips.filter(c=>c.id!==id);
+  localStorage.setItem(LS_KEY,JSON.stringify(clips));
+  renderTable();updateStats();
+  try{
+    await fetch(GAS_URL,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({action:'delete',id:id}),
+      redirect:'follow'
+    });
+  }catch(err){
+    console.warn('Sheet delete failed',err);
+  }
 }
+
 function exportCSV(){
   const headers=['ID','Timestamp','Platform','URL','Song','Dance','Character','Product','Score','Status','Note'];
   const rows=clips.map(c=>[c.id,c.timestamp,c.platform,c.url,c.song,c.dance,c.character,c.product,c.score,c.status,c.note].map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(','));
