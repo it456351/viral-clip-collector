@@ -96,7 +96,7 @@ async function handleSave(e){
   try{
     const res=await fetch(GAS_URL,{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'text/plain'},
       body:JSON.stringify(clipData),
       redirect:'follow'
     });
@@ -143,66 +143,25 @@ function renderTable(){
     return;
   }
   empty.style.display='none';
-  tbody.innerHTML=filtered.map((c,i)=>`
-    <tr>
-      <td>${i+1}</td>
-      <td><span class="platform-badge">${c.platform||'-'}</span></td>
-      <td><a href="${c.url||'#'}" target="_blank" rel="noopener">${(c.url||'').substring(0,35)}...</a></td>
-      <td>${c.song||'-'}</td>
-      <td>${c.dance||'-'}</td>
-      <td>${c.character||'-'}</td>
-      <td>${c.score||0}</td>
-      <td><span class="status-badge ${(c.status||'').toLowerCase()}">${c.status||'-'}</span></td>
-      <td>${c.note||'-'}</td>
-      <td>
-        <button onclick="openClip('${c.id}')">Open</button>
-        <button onclick="copyClip('${c.id}')">Copy</button>
-        <button onclick="editClip('${c.id}')">Edit</button>
-        <button onclick="delClip('${c.id}')">Del</button>
-      </td>
-    </tr>
-  `).join('');
+  tbody.innerHTML=filtered.map((c,i)=>`<tr><td>${i+1}</td><td><span class="platform-badge">${c.platform||'-'}</span></td><td><a href="${c.url||'#'}" target="_blank" rel="noopener">${(c.url||'').substring(0,35)}...</a></td><td>${c.song||'-'}</td><td>${c.dance||'-'}</td><td>${c.character||'-'}</td><td>${c.score||0}</td><td><span class="status-badge ${(c.status||'').toLowerCase()}">${c.status||'-'}</span></td><td>${c.note||'-'}</td><td><button onclick="openClip('${c.id}')">Open</button><button onclick="copyClip('${c.id}')">Copy</button><button onclick="editClip('${c.id}')">Edit</button><button onclick="delClip('${c.id}')">Del</button></td></tr>`).join('');
 }
 
-function openClip(id){
-  const c=clips.find(x=>x.id===id);
-  if(c&&c.url)window.open(c.url,'_blank');
-}
-
-function copyClip(id){
-  const c=clips.find(x=>x.id===id);
-  if(c&&c.url)navigator.clipboard.writeText(c.url).then(()=>showToast('URL copied!'));
-}
-
+function openClip(id){const c=clips.find(x=>x.id===id);if(c&&c.url)window.open(c.url,'_blank');}
+function copyClip(id){const c=clips.find(x=>x.id===id);if(c&&c.url)navigator.clipboard.writeText(c.url).then(()=>showToast('URL copied!'));}
 function editClip(id){
-  const c=clips.find(x=>x.id===id);
-  if(!c)return;
-  editId=id;
+  const c=clips.find(x=>x.id===id);if(!c)return;editId=id;
   const set=(elId,val)=>{const el=document.getElementById(elId);if(el)el.value=val||'';};
-  set('platform',c.platform);set('url',c.url);set('song',c.song);
-  set('dance',c.dance);set('character',c.character);set('product',c.product);
-  set('score',c.score);set('status',c.status);set('note',c.note);
+  set('platform',c.platform);set('url',c.url);set('song',c.song);set('dance',c.dance);set('character',c.character);set('product',c.product);set('score',c.score);set('status',c.status);set('note',c.note);
   document.getElementById('clipForm').scrollIntoView({behavior:'smooth'});
 }
-
 async function delClip(id){
   if(!confirm('Delete this clip?'))return;
-  clips=clips.filter(c=>c.id!==id);
-  localStorage.setItem(LS_KEY,JSON.stringify(clips));
-  renderTable();updateStats();
+  clips=clips.filter(c=>c.id!==id);localStorage.setItem(LS_KEY,JSON.stringify(clips));renderTable();updateStats();
 }
-
 function exportCSV(){
   const headers=['ID','Timestamp','Platform','URL','Song','Dance','Character','Product','Score','Status','Note'];
   const rows=clips.map(c=>[c.id,c.timestamp,c.platform,c.url,c.song,c.dance,c.character,c.product,c.score,c.status,c.note].map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(','));
   const csv=[headers.join(','),...rows].join('\n');
-  const a=document.createElement('a');
-  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-  a.download='viral_clips_'+new Date().toISOString().slice(0,10)+'.csv';
-  a.click();
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='viral_clips_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
 }
-
-function showToast(msg){
-  const t=document.getElementById('toast');
-  if(t){t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',2000);}
-}
+function showToast(msg){const t=document.getElementById('toast');if(t){t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',2000);}}
