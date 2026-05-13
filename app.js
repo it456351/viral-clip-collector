@@ -1,4 +1,4 @@
-const GAS_URL='https://script.google.com/macros/s/AKfycbwytCJtXcfhv4HeyOo8D9Yo-7Sqcfz8I_4HENa-X1kZWNmnnS_fSc8eQiXxJv1CcuMFmA/exec';
+const GAS_URL='https://script.google.com/macros/s/AKfycbzMmeWUMiqUm8NXSkAu5aqn0pBscYfNTIQsaCxtYYY_XJcVVnOY-hd5g1g0B4RPJUpbNg/exec';
 const LS_KEY='viralClips_v1';
 const AUTH_KEY='vcc_auth_ok_2026';
 const USERS={viralclip:'R(SMpGAYh]!4h4%z'};
