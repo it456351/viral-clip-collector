@@ -1,14 +1,11 @@
-const GAS_URL='YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL';
+const GAS_URL='https://script.google.com/macros/s/AKfycbwytCJtXcfhv4HeyOo8D9Yo-7Sqcfz8I_4HENa-X1kZWNmnnS_fSc8eQiXxJv1CcuMFmA/exec';
 const LS_KEY='viralClips_v1';
 const AUTH_KEY='vcc_auth_ok_2026';
 const USERS={viralclip:'R(SMpGAYh]!4h4%z'};
 let clips=[],editId=null;
-
-// Rate limiting: max 5 failed attempts then lockout 30s
 let failCount=0,lockUntil=0;
 
 document.addEventListener('DOMContentLoaded',()=>{
-  // Always clear on fresh page load for security
   const ok=sessionStorage.getItem(AUTH_KEY);
   if(ok==='true'){showApp();}else{showLogin();}
 });
@@ -17,7 +14,6 @@ function showLogin(){
   document.getElementById('loginPage').style.display='flex';
   document.getElementById('mainApp').style.display='none';
   const form=document.getElementById('loginForm');
-  // Remove old listener to prevent duplicate
   form.replaceWith(form.cloneNode(true));
   document.getElementById('loginForm').addEventListener('submit',handleLogin);
 }
@@ -25,22 +21,14 @@ function showLogin(){
 function handleLogin(e){
   e.preventDefault();
   const err=document.getElementById('loginErr');
-  // Check lockout
-  if(Date.now()<lockUntil){
-    const secs=Math.ceil((lockUntil-Date.now())/1000);
-    err.textContent='Too many attempts. Wait '+secs+'s';
-    return;
-  }
+  if(Date.now()<lockUntil){const secs=Math.ceil((lockUntil-Date.now())/1000);err.textContent='Too many attempts. Wait '+secs+'s';return;}
   const user=document.getElementById('loginUser').value.trim();
   const pass=document.getElementById('loginPass').value;
   if(USERS[user]&&USERS[user]===pass){
-    failCount=0;
-    sessionStorage.setItem(AUTH_KEY,'true');
-    document.getElementById('loginPage').style.display='none';
-    showApp();
+    failCount=0;sessionStorage.setItem(AUTH_KEY,'true');
+    document.getElementById('loginPage').style.display='none';showApp();
   }else{
-    failCount++;
-    document.getElementById('loginPass').value='';
+    failCount++;document.getElementById('loginPass').value='';
     if(failCount>=5){lockUntil=Date.now()+30000;failCount=0;err.textContent='Too many attempts. Locked 30s.';return;}
     err.textContent='Invalid username or password ('+failCount+'/5)';
     setTimeout(()=>{err.textContent='';},3000);
@@ -48,24 +36,32 @@ function handleLogin(e){
 }
 
 function showApp(){
-  // Double-check auth before showing app
   if(sessionStorage.getItem(AUTH_KEY)!=='true'){showLogin();return;}
   document.getElementById('mainApp').style.display='block';
   document.getElementById('loginPage').style.display='none';
-  loadFromLocalStorage();renderTable();updateStats();
+  loadClips();
   document.getElementById('clipForm').addEventListener('submit',handleSave);
   document.getElementById('exportBtn').addEventListener('click',exportCSV);
   document.getElementById('searchInput').addEventListener('input',renderTable);
   document.getElementById('filterPlatform').addEventListener('change',renderTable);
   document.getElementById('filterStatus').addEventListener('change',renderTable);
   document.getElementById('sortSelect').addEventListener('change',renderTable);
-  document.getElementById('logoutBtn').addEventListener('click',()=>{
-    sessionStorage.removeItem(AUTH_KEY);
-    location.reload();
-  });
+  document.getElementById('logoutBtn').addEventListener('click',()=>{sessionStorage.removeItem(AUTH_KEY);location.reload();});
 }
 
-function loadFromLocalStorage(){const raw=localStorage.getItem(LS_KEY);clips=raw?JSON.parse(raw):[];}
+async function loadClips(){
+  const raw=localStorage.getItem(LS_KEY);
+  if(raw){clips=JSON.parse(raw);renderTable();updateStats();}
+  try{
+    const res=await fetch(GAS_URL,{redirect:'follow'});
+    const data=await res.json();
+    if(data.result==='OK'&&Array.isArray(data.clips)){
+      clips=data.clips;localStorage.setItem(LS_KEY,JSON.stringify(clips));
+      renderTable();updateStats();
+    }
+  }catch(err){console.warn('Sheet load failed, using cache',err);}
+}
+
 function saveToLocalStorage(){localStorage.setItem(LS_KEY,JSON.stringify(clips));}
 
 async function handleSave(e){
@@ -81,15 +77,13 @@ async function handleSave(e){
   };
   if(editId){clips=clips.map(c=>c.id===editId?clip:c);editId=null;}else{clips.unshift(clip);}
   saveToLocalStorage();renderTable();updateStats();resetForm();
-  showToast('Clip saved!');
-  msg.textContent='Saved locally!';msg.className='form-msg success';
-  if(GAS_URL&&GAS_URL!=='YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL'){
-    try{
-      const res=await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(clip)});
-      const text=await res.text();
-      if(text.includes('OK')){msg.textContent='Saved to Google Sheet!';}
-    }catch{msg.textContent+=' Sheet sync failed';msg.className='form-msg error';}
-  }
+  showToast('Saving...');msg.textContent='Saving...';msg.className='form-msg';
+  try{
+    const res=await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(clip),redirect:'follow'});
+    const text=await res.text();
+    if(text.includes('OK')){msg.textContent='Saved to Google Sheet!';msg.className='form-msg success';showToast('Saved!');}
+    else{msg.textContent='Saved locally (Sheet sync issue)';msg.className='form-msg error';}
+  }catch(err){msg.textContent='Saved locally (offline)';msg.className='form-msg error';}
   setTimeout(()=>{msg.textContent='';msg.className='form-msg';},3000);
 }
 
@@ -114,54 +108,36 @@ function renderTable(){
   document.getElementById('clipCount').textContent=filtered.length;
   if(!filtered.length){tbody.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';
-  tbody.innerHTML=filtered.map((c,i)=>`
-    <tr>
-      <td style="color:var(--muted);font-family:var(--font-mono)">${i+1}</td>
-      <td>${platformBadge(c.platform)}</td>
-      <td><a href="${escHtml(c.url)}" target="_blank" rel="noopener noreferrer" class="url-cell" title="${escHtml(c.url)}">${escHtml(c.url)}</a></td>
-      <td>${escHtml(c.song)}</td><td>${escHtml(c.dance)}</td><td>${escHtml(c.character)}</td>
-      <td>${scoreBadge(c.score)}</td><td>${statusBadge(c.status)}</td>
-      <td style="font-size:12px;color:var(--muted);max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(c.note)}</td>
-      <td><div class="action-btns">
-        <button class="action-btn" onclick="openURL('${escAttr(c.url)}')">Open</button>
-        <button class="action-btn" onclick="copyURL('${escAttr(c.url)}')">Copy</button>
-        <button class="action-btn" onclick="editClip('${c.id}')">Edit</button>
-        <button class="action-btn action-btn--danger" onclick="deleteClip('${c.id}')">Del</button>
-      </div></td>
-    </tr>
-  `).join('');
+  tbody.innerHTML=filtered.map((c,i)=>`<tr><td style="color:var(--muted);font-family:var(--font-mono)">${i+1}</td><td>${platformBadge(c.platform)}</td><td><a href="${c.url}" target="_blank" rel="noopener" style="color:var(--accent);word-break:break-all">${c.url&&c.url.length>40?c.url.substring(0,40)+'...':(c.url||'-')}</a></td><td>${c.song||'-'}</td><td>${c.dance||'-'}</td><td>${c.character||'-'}</td><td><span style="color:var(--accent);font-weight:700">${c.score||0}</span></td><td>${statusBadge(c.status)}</td><td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.note||''}</td><td><button class="btn btn--sm" onclick="openClip('${c.id}')">Open</button> <button class="btn btn--sm" onclick="copyClip('${c.id}')">Copy</button> <button class="btn btn--sm btn--warning" onclick="editClip('${c.id}')">Edit</button> <button class="btn btn--sm btn--danger" onclick="deleteClip('${c.id}')">Del</button></td></tr>`).join('');
 }
 
-function openURL(url){window.open(url,'_blank','noopener,noreferrer');}
-function copyURL(url){navigator.clipboard.writeText(url).then(()=>showToast('Copied!'));}
+function platformBadge(p){const colors={TikTok:'#69C9D0',YouTube:'#FF0000',Instagram:'#E1306C',Facebook:'#1877F2',Twitter:'#1DA1F2',Other:'#888'};const c=colors[p]||'#888';return '<span style="background:'+c+'22;color:'+c+';border:1px solid '+c+';border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700">'+(p||'?')+'</span>';}
+function statusBadge(s){const colors={New:'var(--accent)',Watched:'#aaa',Hot:'#ff4444',Saved:'#44ff88'};const c=colors[s]||'#888';return '<span style="background:'+c+'22;color:'+c+';border:1px solid '+c+';border-radius:4px;padding:2px 8px;font-size:11px">'+(s||'New')+'</span>';}
+function openClip(id){const c=clips.find(x=>x.id===id);if(c&&c.url)window.open(c.url,'_blank');}
+function copyClip(id){const c=clips.find(x=>x.id===id);if(c){navigator.clipboard.writeText(c.url||'').then(()=>showToast('URL copied!'));}}
 function editClip(id){
-  if(sessionStorage.getItem(AUTH_KEY)!=='true'){location.reload();return;}
   const c=clips.find(x=>x.id===id);if(!c)return;editId=id;
-  ['platform','url','song','dance','character','product','score','status','note'].forEach(k=>document.getElementById(k).value=c[k]??'');
+  ['platform','url','song','dance','character','product','score','status','note'].forEach(k=>{const el=document.getElementById(k);if(el)el.value=c[k]||'';});
   document.querySelector('#clipForm .btn--primary').textContent='Update Clip';
-  document.getElementById('clipForm').scrollIntoView({behavior:'smooth'});
+  window.scrollTo({top:0,behavior:'smooth'});
 }
 function deleteClip(id){
-  if(sessionStorage.getItem(AUTH_KEY)!=='true'){location.reload();return;}
   if(!confirm('Delete this clip?'))return;
-  clips=clips.filter(c=>c.id!==id);saveToLocalStorage();renderTable();updateStats();showToast('Deleted',true);
-}
-function exportCSV(){
-  if(sessionStorage.getItem(AUTH_KEY)!=='true'){location.reload();return;}
-  if(!clips.length){showToast('No clips!',true);return;}
-  const h=['Timestamp','Platform','URL','Song','Dance','Character','Product','Score','Status','Note'];
-  const rows=clips.map(c=>[c.timestamp,c.platform,c.url,c.song,c.dance,c.character,c.product,c.score,c.status,c.note].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(','));
-  const blob=new Blob(['\uFEFF'+[h.join(','),...rows].join('\n')],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`viral_clips_${new Date().toISOString().slice(0,10)}.csv`;a.click();
-  showToast('CSV Exported!');
+  clips=clips.filter(c=>c.id!==id);saveToLocalStorage();renderTable();updateStats();showToast('Deleted');
 }
 function updateStats(){
-  document.getElementById('totalCount').textContent=clips.length;
-  document.getElementById('highScore').textContent=clips.length?Math.max(...clips.map(c=>c.score||0)):0;
+  document.getElementById('totalClips').textContent=clips.length;
+  const scores=clips.map(c=>c.score||0).filter(s=>s>0);
+  document.getElementById('highScore').textContent=scores.length?Math.max(...scores):0;
 }
-function platformBadge(p){const m={'TikTok':'badge--tiktok','Facebook':'badge--facebook','YouTube Shorts':'badge--youtube','Instagram':'badge--instagram'};return `<span class="badge ${m[p]||''}">${escHtml(p)}</span>`;}
-function statusBadge(s){const m={'New':'new','In Progress':'inprogress','Done':'done','Archived':'archived'};return `<span class="status status--${m[s]||'new'}">${escHtml(s)}</span>`;}
-function scoreBadge(n){const c=n>=70?'score--high':n>=40?'score--mid':'score--low';return `<span class="score ${c}">${n||'-'}</span>`;}
-function showToast(msg,isErr=false){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(isErr?' error':'');setTimeout(()=>{t.className='toast';},2500);}
-function escHtml(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function escAttr(s){return String(s??'').replace(/'/g,"&#39;").replace(/"/g,'&quot;');}
+function showToast(msg){
+  let t=document.getElementById('toast');
+  if(!t){t=document.createElement('div');t.id='toast';t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#39ff14;color:#000;padding:10px 24px;border-radius:8px;font-weight:700;z-index:9999;transition:opacity 0.3s';document.body.appendChild(t);}
+  t.textContent=msg;t.style.opacity='1';clearTimeout(t._timer);t._timer=setTimeout(()=>{t.style.opacity='0';},2000);
+}
+function exportCSV(){
+  const headers=['ID','Timestamp','Platform','URL','Song','Dance','Character','Product','Score','Status','Note'];
+  const rows=clips.map(c=>[c.id,c.timestamp,c.platform,c.url,c.song,c.dance,c.character,c.product,c.score,c.status,c.note].map(x=>'"'+(x||'').toString().replace(/"/g,'""')+'"').join(','));
+  const csv=[headers.join(','),...rows].join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='viral_clips.csv';a.click();
+}
