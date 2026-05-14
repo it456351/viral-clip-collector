@@ -155,7 +155,7 @@ function renderTable(){
     return;
   }
   empty.style.display='none';
-  tbody.innerHTML=filtered.map((c,i)=>`<tr><td>${i+1}</td><td><span class="platform-badge">${c.platform||'-'}</span></td><td><a href="${c.url||'#'}" target="_blank" rel="noopener" title="${c.url||''}">${shortUrl(c.url)}</a></td><td>${c.song||'-'}</td><td>${c.dance||'-'}</td><td>${c.character||'-'}</td><td>${c.score||0}</td><td><span class="status-badge ${(c.status||'').toLowerCase()}">${c.status||'-'}</span></td><td>${c.note||'-'}</td><td><button onclick="openClip('${c.id}')">Open</button><button onclick="copyClip('${c.id}')">Copy</button><button onclick="editClip('${c.id}')">Edit</button><button onclick="delClip('${c.id}')">Del</button></td></tr>`).join('');
+  tbody.innerHTML=filtered.map((c,i)=>`<tr><td>${i+1}</td><td><span class="platform-badge">${c.platform||'-'}</span></td><td><a href="${c.url||'#'}" target="_blank" rel="noopener" title="${c.url||''}">${c.platform||'-'}</a></td><td>${c.song||'-'}</td><td>${c.dance||'-'}</td><td>${c.character||'-'}</td><td>${c.score||0}</td><td><span class="status-badge ${(c.status||'').toLowerCase()}">${c.status||'-'}</span></td><td>${c.note||'-'}</td><td><button onclick="openClip('${c.id}')">Open</button><button onclick="copyClip('${c.id}')">Copy</button><button onclick="editClip('${c.id}')">Edit</button><button onclick="delClip('${c.id}')">Del</button></td></tr>`).join('');
 }
 
 function openClip(id){const c=clips.find(x=>x.id===id);if(c&&c.url)window.open(c.url,'_blank');}
